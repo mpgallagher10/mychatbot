@@ -1,5 +1,5 @@
 import os
-os.environ['OPENAI_API_KEY'] = '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'
+os.environ['OPENAI_API_KEY'] = 'YOUR_OPENAI_API_KEY'
 import pickle
 
 from google.auth.transport.requests import Request
