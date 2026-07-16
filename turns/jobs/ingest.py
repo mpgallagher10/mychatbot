@@ -50,7 +50,9 @@ def run_ingest(job) -> None:
 
     run.status = InspectionRun.Status.INGESTING
     run.error_detail = ""
-    run.save(update_fields=["status", "error_detail", "updated_at"])
+    if not run.review_url:
+        run.review_url = run.build_review_url()
+    run.save(update_fields=["status", "error_detail", "review_url", "updated_at"])
 
     try:
         resolution = _resolve_sources(run)
@@ -123,6 +125,13 @@ def _resolve_via_salesforce(run: InspectionRun) -> Optional[SourceResolution]:
 
     snapshot = client.fetch_context_for_turn(run.salesforce_work_item_id)
     run.salesforce_snapshot = snapshot
+
+    # Best-effort: publish the review link back to the turn record so reviewers
+    # can find it. Don't fail ingest if the field isn't configured yet.
+    try:
+        client.write_review_url(run.salesforce_work_item_id, run.build_review_url())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("run#%s could not write review url to Salesforce: %s", run.pk, exc)
 
     turn = snapshot.get("turn") or {}
     current_source = (turn.get("Photo_Folder_URL__c") or "").strip()

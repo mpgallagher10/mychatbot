@@ -1,0 +1,86 @@
+{% extends "review/base.html" %}
+{% block title %}Summary — Turn Review{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+  <a class="muted" href="{% url 'review:overview' run.review_token %}">← Overview</a>
+  <div class="muted">{{ reviewed }}/{{ total }} reviewed · {{ rejected_count }} rejected</div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">Turn summary</h2>
+  {% if summary %}<p>{{ summary }}</p>{% endif %}
+  {% if pending %}
+    <p class="pill medium">{{ pending }} finding(s) still unreviewed —
+      <a href="{% url 'review:overview' run.review_token %}">finish reviewing</a></p>
+  {% endif %}
+
+  <div class="row" style="gap:32px; margin-top:12px;">
+    <div><div class="muted">Accepted findings</div><div style="font-size:22px; font-weight:700;">{{ accepted|length }}</div></div>
+    <div><div class="muted">Proposed guest billing</div>
+      <div style="font-size:22px; font-weight:700;">${{ suggestions.billing_total|floatformat:2 }}</div></div>
+  </div>
+</div>
+
+<h3 style="margin:22px 0 8px;">Suggested maintenance work items</h3>
+<div class="card" style="padding:0;">
+  <table>
+    <thead><tr><th>Room</th><th>Issue type</th><th>Priority</th><th>Description</th><th class="right">Est. cost</th></tr></thead>
+    <tbody>
+      {% for w in suggestions.maintenance_items %}
+        <tr>
+          <td>{{ w.room|default:"—" }}</td>
+          <td>{{ w.issue_type }}</td>
+          <td>{{ w.priority }}</td>
+          <td>{{ w.description }}{% if w.billable_to_guest %} <span class="pill bill">bill</span>{% endif %}</td>
+          <td class="right">{% if w.estimated_cost %}${{ w.estimated_cost }}{% else %}—{% endif %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="muted">No maintenance work items suggested.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 style="margin:22px 0 8px;">Suggested guest billing lines</h3>
+<div class="card" style="padding:0;">
+  <table>
+    <thead><tr><th>Line</th><th class="right">Amount</th></tr></thead>
+    <tbody>
+      {% for b in suggestions.billing_lines %}
+        <tr><td>{{ b.description }}</td><td class="right">${{ b.amount }}</td></tr>
+      {% empty %}<tr><td colspan="2" class="muted">No billable items.</td></tr>{% endfor %}
+      {% if suggestions.billing_lines %}
+        <tr><td class="right" style="font-weight:700;">Total</td>
+            <td class="right" style="font-weight:700;">${{ suggestions.billing_total|floatformat:2 }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if run_summary.contractor_reported_not_found or run_summary.model_found_not_reported %}
+<h3 style="margin:22px 0 8px;">Reconciliation with contractor notes</h3>
+<div class="card">
+  {% if run_summary.contractor_reported_not_found %}
+    <p><strong>Contractor reported, not found by model:</strong></p>
+    <ul>{% for x in run_summary.contractor_reported_not_found %}<li>{{ x }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if run_summary.model_found_not_reported %}
+    <p><strong>Model found, not in contractor notes:</strong></p>
+    <ul>{% for x in run_summary.model_found_not_reported %}<li>{{ x }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row" style="margin-top:18px; align-items:center;">
+  <form method="post" action="{% url 'review:finalize' run.review_token %}">
+    {% csrf_token %}
+    <button class="btn primary" type="submit" {% if pending %}disabled title="Review all findings first"{% endif %}>
+      Finalize review
+    </button>
+  </form>
+  {% if run.status == "reviewed" %}<span class="pill ok">Review finalized</span>{% endif %}
+</div>
+<p class="muted" style="font-size:13px; margin-top:10px;">
+  Finalizing locks in the proposed billing total. Creating the work items and
+  billing lines in Salesforce is the next step (write-back).
+</p>
+{% endblock %}

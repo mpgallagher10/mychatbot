@@ -162,6 +162,30 @@ python manage.py evaluate <run_id>   # requires ANTHROPIC_API_KEY
 > comes from the classifier, not capture time; filenames (which embed a
 > timestamp for this data set) are passed to the model as a weak hint only.
 
+## Review micro-app
+
+A token-gated web app for the final human review, served by Django at
+`/review/<token>`:
+
+- **Overview** — run header, progress bar, resume/start.
+- **One finding at a time** (sorted by confidence, highest first) — side-by-side
+  **current vs prior** evidence photos, the model's category / severity /
+  billable flag / confidence / estimated cost, and three actions: **approve**,
+  **edit** (recategorize / reprice / re-describe), **reject**.
+- **Summary** — accepted findings, **suggested maintenance work items** and
+  **guest billing lines** with a total, plus the contractor-notes
+  reconciliation. **Finalize** locks in the billing total and marks the run
+  `REVIEWED` (the hand-off to write-back).
+
+The review link is written back to the turn's Salesforce record
+(`SF_REVIEW_URL_FIELD`, default `Turn_Review_URL__c`) during ingest, so
+reviewers find it on the `Work_Item__c`. Downsampled photos are streamed from
+the volume via `/review/<token>/photo/<id>` (scoped to the run).
+
+> **Access control:** the URL carries an unguessable per-run token (capability
+> URL). In production put the review routes behind SSO/login as well; the token
+> is a convenience for the Salesforce-field link, not a substitute for auth.
+
 ## Tests
 
 ```bash

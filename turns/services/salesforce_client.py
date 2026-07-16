@@ -226,6 +226,17 @@ class SalesforceClient:
             f"AND Status__c IN ({statuses}) ORDER BY CreatedDate DESC"
         )
 
+    # --- Writes -------------------------------------------------------------
+    def update_work_item(self, work_item_id: str, fields: dict) -> None:
+        """Patch fields on a Work_Item__c record."""
+        wid = _safe_id(work_item_id)
+        getattr(self._sf, WORK_ITEM_OBJECT).update(wid, fields)
+
+    def write_review_url(self, work_item_id: str, url: str) -> None:
+        field = settings.SF_REVIEW_URL_FIELD
+        self.update_work_item(work_item_id, {field: url})
+        logger.info("salesforce: wrote review url to %s.%s", work_item_id, field)
+
     # --- Snapshots ----------------------------------------------------------
     def fetch_context(self, property_id: str) -> dict[str, Any]:
         """Property-scoped context (no current turn id available)."""

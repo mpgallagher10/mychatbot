@@ -1,0 +1,16 @@
+{% extends "review/base.html" %}
+{% block title %}Processing — Turn Review{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">This turn is still processing</h2>
+  <p class="muted">
+    Current status: <strong>{{ run.get_status_display }}</strong>.
+    This page will be ready once the photos have been ingested and evaluated.
+  </p>
+  {% if run.status == "failed" %}
+    <p style="color:var(--red);">Processing failed: {{ run.error_detail }}</p>
+  {% else %}
+    <p class="muted">Refresh in a minute.</p>
+  {% endif %}
+</div>
+{% endblock %}

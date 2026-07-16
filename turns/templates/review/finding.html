@@ -1,0 +1,109 @@
+{% extends "review/base.html" %}
+{% block title %}Finding {{ position }}/{{ total }} — Turn Review{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+  <a class="muted" href="{% url 'review:overview' run.review_token %}">← Overview</a>
+  <div class="muted">Finding {{ position }} of {{ total }} · {{ reviewed }} reviewed</div>
+</div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div class="muted" style="text-transform:uppercase; font-size:12px; letter-spacing:.04em;">
+        {{ f.room_label|default:"—" }}
+      </div>
+      <h2 style="margin:4px 0 8px;">{{ f.description }}</h2>
+    </div>
+    <div style="text-align:right;">
+      <div class="pill {{ f.severity }}">{{ f.get_severity_display }}</div>
+      {% if f.billable_to_guest %}<div class="pill bill" style="margin-top:6px;">Billable to guest</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="row" style="gap:24px; margin:6px 0 4px;">
+    <span class="muted">Category: <strong>{{ f.get_category_display }}</strong></span>
+    <span class="muted">Confidence: <strong>{{ f.confidence|floatformat:2 }}</strong></span>
+    <span class="muted">Est. cost: <strong>{% if f.estimated_cost %}${{ f.estimated_cost }}{% else %}—{% endif %}</strong></span>
+    <span class="muted">Status: <strong>{{ f.get_review_status_display }}</strong></span>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div>
+      <label>Current walk</label>
+      <div class="imgs">
+        {% for p in current_photos %}
+          <img src="{% url 'review:photo' run.review_token p.id %}" alt="{{ p.filename }}" loading="lazy">
+        {% empty %}<span class="muted">No current evidence cited.</span>{% endfor %}
+      </div>
+    </div>
+    <div>
+      <label>Prior walk</label>
+      <div class="imgs">
+        {% for p in prior_photos %}
+          <img src="{% url 'review:photo' run.review_token p.id %}" alt="{{ p.filename }}" loading="lazy">
+        {% empty %}<span class="muted">No prior evidence cited.</span>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if editing %}
+    <form method="post" action="{% url 'review:act' run.review_token f.id %}" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      <label>Description</label>
+      <textarea name="description" rows="2">{{ f.description }}</textarea>
+      <div class="grid2">
+        <div>
+          <label>Category</label>
+          <select name="category">
+            {% for value, label in categories %}
+              <option value="{{ value }}" {% if value == f.category %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Severity</label>
+          <select name="severity">
+            {% for value, label in severities %}
+              <option value="{{ value }}" {% if value == f.severity %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Estimated cost (USD)</label>
+          <input type="number" step="0.01" name="estimated_cost" value="{{ f.estimated_cost|default_if_none:'' }}">
+        </div>
+        <div>
+          <label><input type="checkbox" name="billable_to_guest" {% if f.billable_to_guest %}checked{% endif %}> Billable to guest</label>
+        </div>
+      </div>
+      <label>Reviewer notes</label>
+      <input type="text" name="reviewer_notes" value="{{ f.reviewer_notes }}">
+      <div class="row" style="margin-top:14px;">
+        <button class="btn primary" type="submit">Save changes</button>
+        <a class="btn ghost" href="{% url 'review:finding' run.review_token f.id %}">Cancel</a>
+      </div>
+    </form>
+  {% else %}
+    <div class="row" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
+      <form method="post" action="{% url 'review:act' run.review_token f.id %}">
+        {% csrf_token %}<input type="hidden" name="action" value="approve">
+        <button class="btn green" type="submit">Approve</button>
+      </form>
+      <a class="btn" href="{% url 'review:finding' run.review_token f.id %}?edit=1">Edit</a>
+      <form method="post" action="{% url 'review:act' run.review_token f.id %}">
+        {% csrf_token %}<input type="hidden" name="action" value="reject">
+        <button class="btn red" type="submit">Reject</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+<div class="row" style="justify-content:space-between; margin-top:12px;">
+  <div>{% if prev %}<a class="btn ghost" href="{% url 'review:finding' run.review_token prev.id %}">← Previous</a>{% endif %}</div>
+  <div>{% if next %}<a class="btn ghost" href="{% url 'review:finding' run.review_token next.id %}">Next →</a>{% endif %}</div>
+</div>
+{% endblock %}

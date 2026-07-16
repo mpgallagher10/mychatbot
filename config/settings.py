@@ -53,6 +53,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
 ]
@@ -148,6 +149,16 @@ SALESFORCE_USERNAME = os.environ.get("SALESFORCE_USERNAME", "")
 SALESFORCE_PASSWORD = os.environ.get("SALESFORCE_PASSWORD", "")
 SALESFORCE_SECURITY_TOKEN = os.environ.get("SALESFORCE_SECURITY_TOKEN", "")
 SALESFORCE_DOMAIN = os.environ.get("SALESFORCE_DOMAIN", "login")  # or "test"
+
+# Work_Item__c field (URL) where the review-app link for a turn is written.
+# TODO(confirm): create this custom field on Work_Item__c, or set to an existing
+# URL field's API name.
+SF_REVIEW_URL_FIELD = os.environ.get("SF_REVIEW_URL_FIELD", "Turn_Review_URL__c")
+
+# --- Review app -------------------------------------------------------------
+# Public base URL of this service (no trailing slash), used to build the review
+# link written back to Salesforce.
+REVIEW_BASE_URL = os.environ.get("REVIEW_BASE_URL", "http://localhost:8000").rstrip("/")
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 

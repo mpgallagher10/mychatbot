@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Turn Review{% endblock %}</title>
+  <style>
+    :root { --bg:#f7f7f8; --card:#fff; --line:#e3e3e8; --ink:#1c1c22; --muted:#6b6b76;
+            --accent:#2f6fed; --green:#1a7f47; --red:#c0392b; --amber:#b7791f; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+           color:var(--ink); background:var(--bg); }
+    a { color:var(--accent); text-decoration:none; }
+    header.app { background:var(--card); border-bottom:1px solid var(--line); padding:14px 20px; }
+    header.app .prop { font-weight:650; }
+    header.app .meta { color:var(--muted); font-size:13px; }
+    .wrap { max-width:1080px; margin:0 auto; padding:20px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+    .muted { color:var(--muted); }
+    .row { display:flex; gap:20px; flex-wrap:wrap; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px;
+            font-weight:600; border:1px solid var(--line); }
+    .pill.high { color:var(--red); border-color:#f2c7c0; background:#fdecea; }
+    .pill.medium { color:var(--amber); border-color:#f2e2c0; background:#fdf6e9; }
+    .pill.low { color:var(--muted); }
+    .pill.bill { color:var(--red); border-color:#f2c7c0; background:#fdecea; }
+    .pill.ok { color:var(--green); border-color:#c0e6cf; background:#e9f7ef; }
+    .btn { display:inline-block; padding:9px 16px; border-radius:8px; border:1px solid var(--line);
+           background:var(--card); font-weight:600; cursor:pointer; font-size:14px; }
+    .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .btn.green { background:var(--green); border-color:var(--green); color:#fff; }
+    .btn.red { background:var(--card); color:var(--red); border-color:#f2c7c0; }
+    .btn.ghost { background:transparent; }
+    .bar { height:8px; background:#ececf1; border-radius:999px; overflow:hidden; }
+    .bar > span { display:block; height:100%; background:var(--green); }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media (max-width:720px){ .grid2 { grid-template-columns:1fr; } }
+    .imgs { display:flex; gap:8px; flex-wrap:wrap; }
+    .imgs img { width:100%; max-width:240px; border-radius:8px; border:1px solid var(--line); }
+    label { display:block; font-size:13px; font-weight:600; margin:10px 0 4px; }
+    input[type=text], input[type=number], select, textarea {
+      width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); font-size:14px; }
+    th { color:var(--muted); font-weight:600; }
+    .right { text-align:right; }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <div class="wrap" style="padding:0;">
+      <div class="prop">{{ run.property.name|default:run.property.salesforce_id }}</div>
+      <div class="meta">Turn walk {{ run.walk_date }} · status {{ run.get_status_display }}</div>
+    </div>
+  </header>
+  <div class="wrap">{% block content %}{% endblock %}</div>
+</body>
+</html>

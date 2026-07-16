@@ -1,0 +1,28 @@
+{% extends "review/base.html" %}
+{% block title %}Turn Review{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">Review findings</h2>
+  {% if summary %}<p class="muted">{{ summary }}</p>{% endif %}
+
+  <div style="margin:16px 0;">
+    <div class="bar"><span style="width:{% widthratio reviewed total 100 %}%"></span></div>
+    <div class="muted" style="margin-top:6px;">{{ reviewed }} of {{ total }} reviewed</div>
+  </div>
+
+  <div class="row" style="align-items:center;">
+    {% if next %}
+      <a class="btn primary" href="{% url 'review:finding' run.review_token next.id %}">
+        {% if reviewed %}Continue reviewing{% else %}Start review{% endif %}
+      </a>
+    {% else %}
+      <span class="pill ok">All findings reviewed</span>
+    {% endif %}
+    <a class="btn ghost" href="{% url 'review:summary' run.review_token %}">View summary &amp; work items</a>
+  </div>
+
+  <p class="muted" style="margin-top:16px; font-size:13px;">
+    Findings are sorted by model confidence — the clearest ones come first.
+  </p>
+</div>
+{% endblock %}

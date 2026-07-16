@@ -15,8 +15,15 @@ resolves to the same run rather than creating a duplicate.
 """
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.crypto import get_random_string
+
+
+def _make_review_token() -> str:
+    # Unguessable capability token for the review URL.
+    return get_random_string(40)
 
 
 class Property(models.Model):
@@ -44,6 +51,7 @@ class InspectionRun(models.Model):
         INGESTED = "ingested", "Ingested"
         EVALUATING = "evaluating", "Evaluating"
         READY_FOR_REVIEW = "ready_for_review", "Ready for review"
+        REVIEWED = "reviewed", "Reviewed"
         FAILED = "failed", "Failed"
 
     property = models.ForeignKey(
@@ -106,6 +114,10 @@ class InspectionRun(models.Model):
     # flagged duplicate finding ids.
     evaluation_summary = models.JSONField(default=dict, blank=True)
 
+    # Unguessable capability token for the review URL.
+    review_token = models.CharField(
+        max_length=40, unique=True, default=_make_review_token, editable=False
+    )
     # Link to the review micro-app view for this run (written back to SF).
     review_url = models.URLField(blank=True)
 
@@ -132,6 +144,9 @@ class InspectionRun(models.Model):
     @staticmethod
     def make_work_item_key(work_item_id: str) -> str:
         return f"WI:{work_item_id}"
+
+    def build_review_url(self) -> str:
+        return f"{settings.REVIEW_BASE_URL}/review/{self.review_token}"
 
 
 class Photo(models.Model):

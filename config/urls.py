@@ -7,4 +7,5 @@ urlpatterns = [
     path("healthz", turn_views.healthz, name="healthz"),
     path("admin/", admin.site.urls),
     path("webhooks/", include("turns.urls")),
+    path("review/", include("turns.review.urls")),
 ]

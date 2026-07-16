@@ -58,6 +58,9 @@ class _Job:
         self.payload = {"run_id": run_id}
 
 
+@override_settings(
+    SALESFORCE_USERNAME="", SALESFORCE_PASSWORD="", SALESFORCE_SECURITY_TOKEN=""
+)
 class IngestJobTests(TestCase):
     def _run_with_fake(self, run, folders):
         fake = FakeDropbox(folders)
@@ -122,8 +125,13 @@ class IngestJobTests(TestCase):
 class FakeSalesforce:
     """Stand-in returning a turn whose photo folder is a Dropbox path."""
 
+    review_writes = []
+
     def __init__(self, *a, **k):
         pass
+
+    def write_review_url(self, work_item_id, url):
+        type(self).review_writes.append((work_item_id, url))
 
     def fetch_context_for_turn(self, work_item_id):
         return {
@@ -172,6 +180,11 @@ class SalesforceAnchoredIngestTests(TestCase):
         self.assertEqual(run.status, InspectionRun.Status.INGESTED)
         self.assertEqual(run.photo_folder_url, "/Turns/P-1/2026-07-16")
         self.assertEqual(run.prior_work_item_id, "a0XKj000000Prior1")
+        # Review URL was set and published back to Salesforce.
+        self.assertTrue(run.review_url.endswith(f"/review/{run.review_token}"))
+        self.assertIn(
+            ("a0XKj000000Turn01", run.review_url), FakeSalesforce.review_writes
+        )
         self.assertEqual(run.photos.filter(source=Photo.Source.CURRENT).count(), 2)
         self.assertEqual(run.photos.filter(source=Photo.Source.PRIOR).count(), 1)
         self.assertEqual(run.salesforce_snapshot["turn"]["Id"], "a0XKj000000Turn01")
