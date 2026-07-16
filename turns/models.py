@@ -51,16 +51,32 @@ class InspectionRun(models.Model):
     )
     walk_date = models.DateField()
 
-    # (property, walk_date) — the natural idempotency key. Stored explicitly so
-    # a UNIQUE constraint enforces it even under concurrent webhook deliveries.
+    # The turn/walk Work_Item__c that triggered this run. Primary trigger key
+    # and the anchor for all Salesforce context (photo folder, condition notes,
+    # tenant, prior-turn findings). Blank only for legacy property+date runs.
+    salesforce_work_item_id = models.CharField(
+        max_length=18, blank=True, db_index=True
+    )
+
+    # The prior turn's Work_Item__c id (resolved from Salesforce at ingest),
+    # whose photos this run is compared against.
+    prior_work_item_id = models.CharField(max_length=18, blank=True)
+
+    # Idempotency key: the Work Item id when triggered by a turn, else
+    # "{property}:{walk_date}". UNIQUE so concurrent/re-fired webhooks collapse
+    # to one run.
     idempotency_key = models.CharField(max_length=128, unique=True)
 
     status = models.CharField(
         max_length=32, choices=Status.choices, default=Status.PENDING
     )
 
-    # Where the current walk's photos live in Dropbox.
-    dropbox_folder_path = models.CharField(max_length=1024)
+    # Where the current walk's photos live. Either a Dropbox path (convention)
+    # or a folder URL resolved from the turn's Photo_Folder_URL__c.
+    dropbox_folder_path = models.CharField(max_length=1024, blank=True)
+
+    # Resolved photo-folder source for the current walk (Dropbox/Drive URL).
+    photo_folder_url = models.CharField(max_length=1024, blank=True)
 
     # Raw contractor form notes (reconciled against model findings in Pass 3).
     contractor_notes = models.TextField(blank=True)
@@ -108,6 +124,10 @@ class InspectionRun(models.Model):
     @staticmethod
     def make_idempotency_key(salesforce_property_id: str, walk_date) -> str:
         return f"{salesforce_property_id}:{walk_date.isoformat()}"
+
+    @staticmethod
+    def make_work_item_key(work_item_id: str) -> str:
+        return f"WI:{work_item_id}"
 
 
 class Photo(models.Model):

@@ -70,3 +70,26 @@ class WebhookTests(TestCase):
 
     def test_get_not_allowed(self):
         self.assertEqual(self.client.get(URL).status_code, 405)
+
+    def test_work_item_id_is_primary_key(self):
+        resp = self._post(
+            {
+                "work_item_id": "a0XKj000000AbcdEFG",
+                "property_id": "P-1",
+                "walk_date": "2026-07-16",
+            }
+        )
+        self.assertEqual(resp.status_code, 202)
+        data = resp.json()
+        self.assertEqual(data["idempotency_key"], "WI:a0XKj000000AbcdEFG")
+        self.assertEqual(data["work_item_id"], "a0XKj000000AbcdEFG")
+        run = InspectionRun.objects.get(pk=data["run_id"])
+        self.assertEqual(run.salesforce_work_item_id, "a0XKj000000AbcdEFG")
+        # No explicit folder + SF anchor -> folder left for SF resolution.
+        self.assertEqual(data["folder"], "")
+
+    def test_invalid_work_item_id_400(self):
+        resp = self._post(
+            {"work_item_id": "not-an-id", "property_id": "P-1", "walk_date": "2026-07-16"}
+        )
+        self.assertEqual(resp.status_code, 400)

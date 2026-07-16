@@ -125,8 +125,12 @@ class SalesforceError(Exception):
     pass
 
 
+def is_valid_salesforce_id(value: str) -> bool:
+    return bool(_SF_ID_RE.match(value or ""))
+
+
 def _safe_id(value: str) -> str:
-    if not _SF_ID_RE.match(value or ""):
+    if not is_valid_salesforce_id(value):
         raise SalesforceError(f"invalid Salesforce id: {value!r}")
     return value
 

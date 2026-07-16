@@ -37,12 +37,14 @@ Contractor form ──POST──▶ /webhooks/turn-completed  (web process)
   need a broker. `SELECT … FOR UPDATE SKIP LOCKED` gives concurrent,
   at-least-once processing with retries and backoff from one table. Run more
   `worker` replicas for throughput.
-- **Folder convention `/Turns/{property_id}/{yyyy-mm-dd}/`.** Makes "which
-  photos are this walk?" and "where is the prior walk?" pure string operations.
-  Enforced at the webhook boundary.
-- **Idempotency = (property, walk_date).** Re-fired webhooks resolve to the same
-  `InspectionRun`; the ingest job skips already-downloaded photos. Safe to
-  retry anywhere.
+- **Turn record is the source of truth.** The turn `Work_Item__c` owns the photo
+  folder (`Photo_Folder_URL__c`), condition notes, tenant, and — via
+  `Related_Turn_Walk__c` — the prior turn's findings. The webhook keys on its id.
+  A `/Turns/{property_id}/{yyyy-mm-dd}/` Dropbox convention remains as a
+  no-Salesforce fallback.
+- **Idempotency = Work Item id** (or `(property, walk_date)` in fallback mode).
+  Re-fired webhooks resolve to the same `InspectionRun`; the ingest job skips
+  already-downloaded photos. Safe to retry anywhere.
 - **Downsample at ingest.** 1568px / JPEG q80 cuts vision token cost 5–10× with
   no meaningful loss for damage detection, and keeps each image under API
   per-image limits.
@@ -75,20 +77,30 @@ snapshot, so you can exercise the webhook + queue without external accounts.
 
 ### Trigger a run
 
+The Salesforce Flow fires when a turn `Work_Item__c` is completed and sends its
+id as `work_item_id` (the primary key). The worker then reads the photo folder
+(`Photo_Folder_URL__c`), condition notes (`Problems_Found__c`), tenant, and the
+prior turn's findings off that record.
+
 ```bash
 curl -X POST http://localhost:8000/webhooks/turn-completed \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Secret: $WEBHOOK_SHARED_SECRET" \
-  -d '{"property_id":"P-123","walk_date":"2026-07-16",
-       "contractor_notes":"cracked tile in master bath"}'
+  -d '{"work_item_id":"a0XKj000000Turn01",
+       "property_id":"a01Kj000000Prop01","walk_date":"2026-07-16"}'
 ```
 
 Response `202`:
 
 ```json
 {"run_id": 1, "status": "pending", "created": true,
- "idempotency_key": "P-123:2026-07-16", "folder": "/Turns/P-123/2026-07-16"}
+ "idempotency_key": "WI:a0XKj000000Turn01",
+ "work_item_id": "a0XKj000000Turn01", "folder": ""}
 ```
+
+Without `work_item_id`, the run falls back to `(property_id, walk_date)` keying
+and the `/Turns/{property_id}/{yyyy-mm-dd}/` Dropbox folder convention — useful
+for local testing with no Salesforce.
 
 ## Tests
 
