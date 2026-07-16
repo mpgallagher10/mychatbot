@@ -92,23 +92,35 @@ class DropboxClient:
 
     @staticmethod
     def _build_client():
-        if not (
-            (settings.DROPBOX_REFRESH_TOKEN and settings.DROPBOX_APP_KEY)
-            or settings.DROPBOX_ACCESS_TOKEN
-        ):
+        has_refresh = bool(
+            settings.DROPBOX_REFRESH_TOKEN and settings.DROPBOX_APP_KEY
+        )
+        has_token = bool(settings.DROPBOX_ACCESS_TOKEN)
+        has_app_auth = bool(settings.DROPBOX_APP_KEY and settings.DROPBOX_APP_SECRET)
+        if not (has_refresh or has_token or has_app_auth):
             raise RuntimeError(
-                "Dropbox not configured: set DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY "
-                "or DROPBOX_ACCESS_TOKEN"
+                "Dropbox not configured: set DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY, "
+                "DROPBOX_ACCESS_TOKEN, or DROPBOX_APP_KEY+DROPBOX_APP_SECRET"
             )
         import dropbox
 
-        if settings.DROPBOX_REFRESH_TOKEN and settings.DROPBOX_APP_KEY:
+        # Preferred: user auth via a non-expiring refresh token.
+        if has_refresh:
             return dropbox.Dropbox(
                 oauth2_refresh_token=settings.DROPBOX_REFRESH_TOKEN,
                 app_key=settings.DROPBOX_APP_KEY,
                 app_secret=settings.DROPBOX_APP_SECRET or None,
             )
-        return dropbox.Dropbox(settings.DROPBOX_ACCESS_TOKEN)
+        # Convenience: a short-lived user access token.
+        if has_token:
+            return dropbox.Dropbox(settings.DROPBOX_ACCESS_TOKEN)
+        # Fallback: app auth (key + secret). NOTE: app auth covers only a narrow
+        # set of endpoints; listing/downloading shared-folder contents generally
+        # needs USER auth (a refresh/access token). Use `manage.py dropbox_login`
+        # to mint a refresh token.
+        return dropbox.Dropbox(
+            app_key=settings.DROPBOX_APP_KEY, app_secret=settings.DROPBOX_APP_SECRET
+        )
 
     # --- Listing ------------------------------------------------------------
     def list_images(self, source: str) -> list[DropboxEntry]:

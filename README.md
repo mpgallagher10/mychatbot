@@ -111,12 +111,25 @@ browser token off the URL (keeping the stable `rlkey`). A plain Dropbox account
 path is also accepted as a fallback. Google Drive URLs are detected but not yet
 wired.
 
-Validate access to a real folder with live credentials:
+**Auth:** listing and downloading a shared folder's contents needs Dropbox
+**user auth**, not app auth. App key + secret alone are not sufficient. Mint a
+non-expiring refresh token once:
+
+```bash
+python manage.py dropbox_login      # authorize, then set DROPBOX_REFRESH_TOKEN
+```
+
+Then validate access to a real folder:
 
 ```bash
 python manage.py dropbox_probe \
   "https://www.dropbox.com/scl/fo/…/…?rlkey=…" --download-first
 ```
+
+> **Network policy:** the worker must be able to reach `api.dropboxapi.com` and
+> `content.dropboxapi.com`. Some Claude Code environment egress policies block
+> these — run the probe/worker where outbound HTTPS to Dropbox is allowed
+> (e.g. Railway, or an environment whose network policy permits it).
 
 ## Tests
 
