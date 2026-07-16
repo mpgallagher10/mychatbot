@@ -170,15 +170,9 @@ def _resolve_previous_run(run: InspectionRun) -> None:
 def _list_entries(dbx: DropboxClient, source: str) -> list[DropboxEntry]:
     """List image entries for a source, branching on its kind."""
     kind = classify_source(source)
-    if kind == SourceKind.DROPBOX_PATH:
+    if kind in (SourceKind.DROPBOX_PATH, SourceKind.DROPBOX_URL):
+        # DropboxClient.list_images handles both account paths and shared links.
         return dbx.list_images(source)
-    if kind == SourceKind.DROPBOX_URL:
-        # Shared-link listing needs the real Photo_Folder_URL__c format to
-        # implement safely; gated until a sample is confirmed.
-        raise PhotoSourceUnsupported(
-            f"Dropbox folder URL not yet wired for download: {source!r}. "
-            "Provide a sample Photo_Folder_URL__c to finalize shared-link listing."
-        )
     if kind == SourceKind.DRIVE_URL:
         raise PhotoSourceUnsupported(
             f"Google Drive photo source not yet wired: {source!r}."
@@ -198,7 +192,7 @@ def _ingest_photos(
     for entry in entries:
         if entry.path in existing_paths:
             continue
-        raw = dbx.download(entry.path)
+        raw = dbx.download(entry)
         processed = images.process_image(
             raw,
             long_edge_px=settings.IMAGE_LONG_EDGE_PX,

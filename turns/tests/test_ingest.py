@@ -8,7 +8,11 @@ from PIL import Image
 from turns.jobs import ingest
 from turns.models import InspectionRun, Photo, Property
 from turns.services import salesforce_client
-from turns.services.dropbox_client import DropboxEntry
+from turns.services.dropbox_client import (
+    DropboxEntry,
+    is_shared_url,
+    normalize_dropbox_shared_url,
+)
 
 
 def _jpeg(w=2000, h=1500):
@@ -19,29 +23,34 @@ def _jpeg(w=2000, h=1500):
 
 
 class FakeDropbox:
-    """In-memory stand-in for DropboxClient."""
+    """In-memory stand-in for DropboxClient (path or shared-link sources)."""
 
     def __init__(self, folders):
-        # folders: {folder_path: [(name, bytes), ...]}
+        # folders: {source(path or url): [(name, bytes), ...]}
         self._folders = folders
+        self._by_key = {}
 
-    def list_images(self, folder_path):
-        return [
-            DropboxEntry(
-                path=f"{folder_path}/{name}".lower(),
+    def list_images(self, source):
+        if is_shared_url(source):
+            source = normalize_dropbox_shared_url(source)
+        entries = []
+        is_url = source.lower().startswith("http")
+        for name, data in self._folders.get(source, []):
+            key = f"{source}#{name}".lower() if is_url else f"{source}/{name}".lower()
+            entry = DropboxEntry(
+                path=key,
                 name=name,
                 size=len(data),
                 content_hash="dbxhash",
+                shared_url=source if is_url else "",
+                rel_path=f"/{name}" if is_url else "",
             )
-            for name, data in self._folders.get(folder_path, [])
-        ]
+            self._by_key[key] = data
+            entries.append(entry)
+        return entries
 
-    def download(self, path):
-        for folder, files in self._folders.items():
-            for name, data in files:
-                if f"{folder}/{name}".lower() == path:
-                    return data
-        raise KeyError(path)
+    def download(self, entry):
+        return self._by_key[entry.path]
 
 
 class _Job:
@@ -166,3 +175,49 @@ class SalesforceAnchoredIngestTests(TestCase):
         self.assertEqual(run.photos.filter(source=Photo.Source.CURRENT).count(), 2)
         self.assertEqual(run.photos.filter(source=Photo.Source.PRIOR).count(), 1)
         self.assertEqual(run.salesforce_snapshot["turn"]["Id"], "a0XKj000000Turn01")
+
+    def test_ingests_from_dropbox_shared_links(self):
+        cur_url = "https://www.dropbox.com/scl/fo/cur123/AAA?rlkey=k1&st=abc&dl=0"
+        prior_url = "https://www.dropbox.com/scl/fo/old456/BBB?rlkey=k2&st=xyz&dl=0"
+
+        class SharedLinkSF(FakeSalesforce):
+            def fetch_context_for_turn(self, work_item_id):
+                ctx = super().fetch_context_for_turn(work_item_id)
+                ctx["turn"]["Photo_Folder_URL__c"] = cur_url
+                ctx["prior_turns"][0]["Photo_Folder_URL__c"] = prior_url
+                return ctx
+
+        prop = Property.objects.create(salesforce_id="a01Kj000000Prop02")
+        run = InspectionRun.objects.create(
+            property=prop,
+            walk_date=date(2026, 7, 16),
+            idempotency_key="WI:a0XKj000000Turn02",
+            salesforce_work_item_id="a0XKj000000Turn02",
+        )
+        # Fake keyed by the NORMALIZED url (st/dl stripped) — what ingest lists.
+        norm_cur = "https://www.dropbox.com/scl/fo/cur123/AAA?rlkey=k1"
+        norm_prior = "https://www.dropbox.com/scl/fo/old456/BBB?rlkey=k2"
+        folders = {
+            norm_cur: [("a.jpg", _jpeg()), ("b.jpg", _jpeg())],
+            norm_prior: [("a.jpg", _jpeg())],  # same filename as current
+        }
+        fake_dbx = FakeDropbox(folders)
+        orig_dbx, orig_sf = ingest.DropboxClient, salesforce_client.SalesforceClient
+        ingest.DropboxClient = lambda *a, **k: fake_dbx
+        salesforce_client.SalesforceClient = SharedLinkSF
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                with override_settings(MEDIA_STORAGE_ROOT=tmp):
+                    ingest.run_ingest(_Job(run.pk))
+        finally:
+            ingest.DropboxClient = orig_dbx
+            salesforce_client.SalesforceClient = orig_sf
+
+        run.refresh_from_db()
+        self.assertEqual(run.status, InspectionRun.Status.INGESTED)
+        # Normalized (no volatile st/dl) URL stored on the run.
+        self.assertEqual(run.photo_folder_url, cur_url)
+        self.assertEqual(run.photos.filter(source=Photo.Source.CURRENT).count(), 2)
+        # Identical filename across walks must NOT collide (namespaced by url).
+        self.assertEqual(run.photos.filter(source=Photo.Source.PRIOR).count(), 1)
+        self.assertEqual(run.photos.count(), 3)

@@ -102,6 +102,22 @@ Without `work_item_id`, the run falls back to `(property_id, walk_date)` keying
 and the `/Turns/{property_id}/{yyyy-mm-dd}/` Dropbox folder convention — useful
 for local testing with no Salesforce.
 
+## Photo sources
+
+Photos come from the turn's `Photo_Folder_URL__c`, which holds a **Dropbox
+shared-link folder** (`https://www.dropbox.com/scl/fo/…?rlkey=…`). The client
+lists and downloads via the shared-link APIs and normalizes the volatile `st=`
+browser token off the URL (keeping the stable `rlkey`). A plain Dropbox account
+path is also accepted as a fallback. Google Drive URLs are detected but not yet
+wired.
+
+Validate access to a real folder with live credentials:
+
+```bash
+python manage.py dropbox_probe \
+  "https://www.dropbox.com/scl/fo/…/…?rlkey=…" --download-first
+```
+
 ## Tests
 
 ```bash
