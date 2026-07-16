@@ -85,6 +85,16 @@ def run_ingest(job) -> None:
             run.photos.filter(source=Photo.Source.CURRENT).count(),
             run.photos.filter(source=Photo.Source.PRIOR).count(),
         )
+
+        # Chain the evaluation passes.
+        from .. import queue
+
+        queue.enqueue(
+            "evaluate_run",
+            {"run_id": run.pk},
+            dedup_key=f"evaluate:{run.idempotency_key}",
+            max_attempts=settings.JOB_MAX_ATTEMPTS,
+        )
     except Exception as exc:  # re-raised so the queue records + retries
         run.status = InspectionRun.Status.FAILED
         run.error_detail = str(exc)

@@ -150,3 +150,17 @@ SALESFORCE_SECURITY_TOKEN = os.environ.get("SALESFORCE_SECURITY_TOKEN", "")
 SALESFORCE_DOMAIN = os.environ.get("SALESFORCE_DOMAIN", "login")  # or "test"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+# --- Evaluation (LLM passes) ------------------------------------------------
+# Pass 1 classification: cheap, high-volume -> Haiku. Pass 2/3 comparison &
+# synthesis: vision-quality-sensitive -> Sonnet. All overridable per env.
+EVAL_MODEL_CLASSIFY = os.environ.get("EVAL_MODEL_CLASSIFY", "claude-haiku-4-5")
+EVAL_MODEL_COMPARE = os.environ.get("EVAL_MODEL_COMPARE", "claude-sonnet-5")
+EVAL_MODEL_SYNTHESIZE = os.environ.get("EVAL_MODEL_SYNTHESIZE", "claude-sonnet-5")
+
+# Max photos of each source (current/prior) sent in a single room-comparison
+# call. Rooms with more are split into batches (never silently truncated).
+EVAL_MAX_IMAGES_PER_ROOM = int(os.environ.get("EVAL_MAX_IMAGES_PER_ROOM", "30"))
+# Concurrent classification calls (Pass 1). Keep modest to respect rate limits.
+EVAL_CLASSIFY_CONCURRENCY = int(os.environ.get("EVAL_CLASSIFY_CONCURRENCY", "4"))
+EVAL_MAX_TOKENS = int(os.environ.get("EVAL_MAX_TOKENS", "8000"))

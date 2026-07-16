@@ -12,5 +12,5 @@ Pillow>=10.3               # downsample + EXIF extraction
 dropbox>=12.0              # Dropbox folder listing + download
 simple-salesforce>=1.12    # Salesforce REST access
 
-# --- LLM (used in later increments: Pass 1/2/3) ---
-anthropic>=0.40
+# --- LLM (Pass 1/2/3 evaluation; messages.parse structured outputs) ---
+anthropic>=0.69            # pulls in pydantic>=2

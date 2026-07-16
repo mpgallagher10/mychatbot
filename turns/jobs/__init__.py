@@ -9,10 +9,12 @@ from __future__ import annotations
 from typing import Callable
 
 from ..models import Job
+from .evaluate import run_evaluate
 from .ingest import run_ingest
 
 HANDLERS: dict[str, Callable[[Job], None]] = {
     "ingest_run": run_ingest,
+    "evaluate_run": run_evaluate,
 }
 
 

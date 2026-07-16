@@ -26,7 +26,14 @@ Contractor form ──POST──▶ /webhooks/turn-completed  (web process)
                                ├─ Pillow: downsample → 1568px q80, extract EXIF
                                ├─ Salesforce: snapshot prior findings / tickets /
                                │              inventory / current booking
-                               └─ mark run INGESTED  ─▶ (next: eval passes)
+                               └─ mark run INGESTED  ─▶ enqueue "evaluate_run"
+                                                                     │
+                          runworker ◀── claim (SKIP LOCKED) ─────────┘
+                               │
+                               ├─ Pass 1  classify every photo (Haiku)
+                               ├─ Pass 2  per-room current-vs-prior compare (Sonnet)
+                               ├─ Pass 3  reconcile + billing total (Sonnet)
+                               └─ mark run READY_FOR_REVIEW  ─▶ (next: review UI)
 ```
 
 ### Why these choices
@@ -130,6 +137,30 @@ python manage.py dropbox_probe \
 > `content.dropboxapi.com`. Some Claude Code environment egress policies block
 > these — run the probe/worker where outbound HTTPS to Dropbox is allowed
 > (e.g. Railway, or an environment whose network policy permits it).
+
+## Evaluation passes (LLM)
+
+Three passes run in the worker after ingest, populating `Finding` rows:
+
+| Pass | Model (default) | What it does |
+|------|-----------------|--------------|
+| 1 — classify | `claude-haiku-4-5` | One call per photo → room / subject / visible issues (structured JSON), stored on each `Photo`. Cheap + parallel. |
+| 2 — compare | `claude-sonnet-5` | Per room, current photos + the prior walk's photos of that room + contractor notes + prior findings → findings with category, severity, `billable_to_guest`, confidence, and cited evidence photos from **both** walks. |
+| 3 — synthesize | `claude-sonnet-5` | Reconciles findings against contractor notes (misses in both directions), flags duplicates, writes the run summary. Billing total is summed **in code** from billable, non-duplicate findings — not by the model. |
+
+Models are configurable via `EVAL_MODEL_CLASSIFY` / `EVAL_MODEL_COMPARE` /
+`EVAL_MODEL_SYNTHESIZE`. Prompts use structured outputs (`messages.parse`) so
+responses are schema-validated. The shared system prompt is prompt-cached.
+
+Run (or re-run) evaluation on an ingested run directly:
+
+```bash
+python manage.py evaluate <run_id>   # requires ANTHROPIC_API_KEY
+```
+
+> **Data note:** these photos often carry no EXIF timestamp, so room grouping
+> comes from the classifier, not capture time; filenames (which embed a
+> timestamp for this data set) are passed to the model as a weak hint only.
 
 ## Tests
 

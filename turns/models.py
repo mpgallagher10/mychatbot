@@ -102,6 +102,10 @@ class InspectionRun(models.Model):
         max_digits=10, decimal_places=2, null=True, blank=True
     )
 
+    # Synthesis pass output: run summary, contractor/model reconciliation,
+    # flagged duplicate finding ids.
+    evaluation_summary = models.JSONField(default=dict, blank=True)
+
     # Link to the review micro-app view for this run (written back to SF).
     review_url = models.URLField(blank=True)
 
