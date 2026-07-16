@@ -115,9 +115,12 @@ All configuration is environment-driven — see `.env.example` for the full list
 (Django, database, storage, webhook secret, image params, Dropbox, Salesforce,
 Anthropic).
 
-> **Salesforce schema:** object/field API names are centralized in
-> `SF_SCHEMA` in `turns/services/salesforce_client.py`. Confirm these against
-> the production org before go-live — several are likely custom objects.
+> **Salesforce schema:** turns/walks and maintenance items are both
+> `Work_Item__c` rows discriminated by RecordTypeId (`RT_TURN` /
+> `RT_MAINTENANCE`), linked to `Property__c`. Object + record-type ids are set
+> in `turns/services/salesforce_client.py`; field-level API names in `WI_FIELDS`
+> are marked `# TODO(confirm)` until the Work_Item__c/Property__c field lists
+> are finalized.
 
 ## Next increments
 
