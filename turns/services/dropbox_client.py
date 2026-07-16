@@ -158,35 +158,39 @@ class DropboxClient:
     def _list_shared(self, shared_url: str) -> list[DropboxEntry]:
         """
         Walk a shared-link folder. Shared-link listing does not support the
-        `recursive` flag, so we descend subfolders manually. Entry `path_lower`
-        values are relative to the shared root.
+        `recursive` flag, and entries come back with `path_lower = None`, so we
+        descend subfolders manually and build each entry's path relative to the
+        shared root from folder + file names. That relative path (e.g.
+        "/Damages 6_16_2026/photo.jpg") is what both `files_list_folder` (for a
+        subfolder) and `sharing_get_shared_link_file` (for download) expect.
         """
         from dropbox.files import FileMetadata, FolderMetadata, SharedLink
 
         entries: list[DropboxEntry] = []
-        pending = [""]  # relative paths still to visit ("" == shared root)
+        pending = [""]  # relative prefixes to visit ("" == shared root)
         while pending:
-            rel = pending.pop()
+            prefix = pending.pop()
             result = _retry(
-                lambda: self._client.files_list_folder(
-                    path=rel, shared_link=SharedLink(url=shared_url)
+                lambda p=prefix: self._client.files_list_folder(
+                    path=p, shared_link=SharedLink(url=shared_url)
                 )
             )
             while True:
                 for entry in result.entries:
+                    rel_path = f"{prefix}/{entry.name}"
                     if isinstance(entry, FolderMetadata):
-                        pending.append(entry.path_lower)
+                        pending.append(rel_path)
                     elif isinstance(entry, FileMetadata) and _is_image(entry.name):
                         entries.append(
                             DropboxEntry(
                                 # Namespaced by the shared url so current/prior
                                 # walks never collide on identical filenames.
-                                path=f"{shared_url}#{entry.path_lower}",
+                                path=f"{shared_url}#{rel_path}",
                                 name=entry.name,
                                 size=entry.size,
                                 content_hash=getattr(entry, "content_hash", "") or "",
                                 shared_url=shared_url,
-                                rel_path=entry.path_lower,
+                                rel_path=rel_path,
                             )
                         )
                 if not result.has_more:
