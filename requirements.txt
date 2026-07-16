@@ -1,0 +1,16 @@
+# --- Web / worker runtime ---
+Django>=5.1,<5.2
+dj-database-url>=2.1
+python-dotenv>=1.0
+psycopg2-binary>=2.9        # Postgres driver (Railway)
+gunicorn>=22.0             # WSGI server for the web process
+
+# --- Media handling ---
+Pillow>=10.3               # downsample + EXIF extraction
+
+# --- External data sources (imported lazily inside services) ---
+dropbox>=12.0              # Dropbox folder listing + download
+simple-salesforce>=1.12    # Salesforce REST access
+
+# --- LLM (used in later increments: Pass 1/2/3) ---
+anthropic>=0.40
